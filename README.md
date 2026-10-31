@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/banner.png" alt="BreathFloat: a soft bubble that floats over your work and breathes slowly, so you do too.">
+  <img src="docs/banner.png" alt="Breath Bubble: a soft bubble that floats over your work and breathes slowly, so you do too.">
 </p>
 
-<p align="center"><a href="https://github.com/simonwisdom/breathfloat/releases/latest/download/BreathFloat.zip"><b>Download for macOS</b></a> · Free · macOS 13 or later</p>
+<p align="center"><a href="https://github.com/simonwisdom/breath-bubble/releases/latest/download/BreathBubble.zip"><b>Download for macOS</b></a> · Free · macOS 13 or later</p>
 
 <p align="center">
   <img src="docs/breathing.gif" width="480" alt="A soft bubble in the corner of the screen grows and shrinks over a document"><br>
@@ -29,8 +29,8 @@ A friend keeps his phone open beside his laptop with a bubble that grows and shr
 
 ## Install
 
-1. Download `BreathFloat.zip` from the [latest release](https://github.com/simonwisdom/breathfloat/releases/latest).
-2. Unzip it and drag `BreathFloat.app` into Applications.
+1. Download `BreathBubble.zip` from the [latest release](https://github.com/simonwisdom/breath-bubble/releases/latest).
+2. Unzip it and drag `Breath Bubble.app` into Applications.
 3. Open it. The first time, macOS says it can't verify the app: open System Settings → Privacy & Security, scroll down and click **Open Anyway**.
 4. Click the bubble icon in the menu bar to choose a pace, colour and sound. Turn on **Open at login** to have it every day.
 
@@ -47,10 +47,10 @@ Needs Xcode 15 or later (or the Swift toolchain).
 
 ```sh
 tools/make-assets   # optional: app icon and README pictures (needs Google Chrome and ffmpeg)
-bin/build           # makes build/BreathFloat.app and build/BreathFloat.zip
+bin/build           # makes build/Breath Bubble.app and build/BreathBubble.zip
 ```
 
-`BreathFloat --snapshot <folder>` draws the settings panel to PNGs, and `BreathFloat --check-sounds` checks the sound files load, both without opening anything on screen.
+`BreathBubble --snapshot <folder>` draws the settings panel to PNGs, and `BreathBubble --check-sounds` checks the sound files load, both without opening anything on screen.
 
 ## License
 

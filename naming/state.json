@@ -1,0 +1,50 @@
+{
+  "title": "Pick a name",
+  "intro": "Names for: a free Mac menu bar app: a soft bubble floats over your screen and slowly grows and shrinks so you breathe slower and deeper while you keep working, with calm sounds that rise and fall with each breath, and a focus mode that fades the whole screen to black leaving only the breathing bubble A script rolled the raw material; the AI's plain names were struck out.",
+  "blocks": [
+    {
+      "type": "question",
+      "id": "name",
+      "prompt": "Which name should the app have?",
+      "note_prompt": "Or ask for another roll, or more like one of these",
+      "options": [
+        {
+          "value": "billow",
+          "detail": "rival&#x27;s app, Evocative, score 4: To billow is to rise and fill softly, like a sail or a cloud. That is exactly what the bubble does on your screen, slowly swelling and settling while you work. It is soft to say and warm to hold. Risk: Some will find it a little common, and others may hear it as &#x27;bellow&#x27; or &#x27;pillow&#x27;."
+        },
+        {
+          "value": "hammock",
+          "detail": "excursion, Experiential, score 4: A hammock holds you up with a slow, easy sway while the world carries on. The app does the same for your workday: a gentle rhythm under you, no need to stop. The name is warm, unhurried and instantly pictured, and it can carry a whole theme of small, cosy things. Risk: It says &#x27;rest&#x27; to some people, which may feel a bit lazy for a work tool."
+        },
+        {
+          "value": "moored",
+          "detail": "excursion, Evocative, score 4: A boat at anchor rocks with the tide yet stays put. That is the feeling the app aims for: the bubble swells and fades, and you stay held in place while a busy day moves around you. It is quiet and quietly confident. Risk: &#x27;Moored&#x27; can sound a bit heavy or stuck, and some will read it as tied down."
+        },
+        {
+          "value": "tarn",
+          "detail": "unrelated object, Evocative, score 4: A tarn is a small, still mountain lake with clear water that shows things plainly. It is a neat picture for a clear head, and the word is short, round and calm to say. The bubble can even look like a drop of that water. Risk: Most people don&#x27;t know the word, so it needs a short line of explanation at first."
+        },
+        {
+          "value": "celadon",
+          "detail": "word field, Evocative, score 3: Celadon is the pale grey-green glaze prized for its quiet, watery colour. It brings a cool, calm, handmade feeling that suits a soft bubble and gentle sounds. It also hands the app a colour to wear. Risk: It is a colour name that many apps and brands already use, and some will find it a bit precious."
+        },
+        {
+          "value": "mellow",
+          "detail": "rival&#x27;s app, Functional, score 3: Mellow is a soft, smooth mood and a soft, smooth sound at once. It says what the app does to your day in one warm word, and it is easy to say and remember. Risk: It is a very plain, well-used word, and may sound a bit sleepy or laid back."
+        },
+        {
+          "value": "lilo",
+          "detail": "excursion, Experiential, score 3: A lilo is the pool float you drift on over tiny ripples. The name is short, playful and warm, and it matches the bubble that rises and falls under you as you float through the day. Risk: It is very British and holiday-like, and it may feel too playful for serious work."
+        },
+        {
+          "value": "kona",
+          "detail": "seed word, Evocative, score 3: Kona is the slow, smooth Hawaiian coast where the ocean swells in and out. It sounds warm and easy, and it carries the rise and fall of the bubble in two soft syllables. Risk: It is strongly tied to coffee and beer, so people may expect something else."
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "html": "Brief: Stay calm and clear-headed through the workday without stopping to meditate; feel warm. Rolled: fields spices, pottery and glazes; object mountain hut; recipes rhyme time: a short rhyme or near-rhyme squeezed into one word; a word that reads the same backwards or nearly so, like Sonos. Seed 616208. Struck out: aura, balance, bloom, bloop, breathe, breathe (apple watch), breathwrk, bubbl, bubbly, calm, calmly, drift, endel, exhale, halo, headspace, hush, inhale, insight timer, lull, moodnotes, oak, orb, othership, pacifica, prana breath, puff, softly, stoic, wim hof method."
+    }
+  ]
+}

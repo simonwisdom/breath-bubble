@@ -63,9 +63,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         // Lets a script or Shortcut start and end focus, and lets tests do it without clicking.
         let dc = DistributedNotificationCenter.default()
-        dc.addObserver(self, selector: #selector(focusRequested), name: .init("com.simonwisdom.breathfloat.focus"),
+        dc.addObserver(self, selector: #selector(focusRequested), name: .init("com.simonwisdom.breathbubble.focus"),
                        object: nil, suspensionBehavior: .deliverImmediately)
-        dc.addObserver(self, selector: #selector(unfocusRequested), name: .init("com.simonwisdom.breathfloat.unfocus"),
+        dc.addObserver(self, selector: #selector(unfocusRequested), name: .init("com.simonwisdom.breathbubble.unfocus"),
                        object: nil, suspensionBehavior: .deliverImmediately)
     }
 

@@ -7,7 +7,7 @@ WORK=build/assets
 rm -rf "$WORK"
 mkdir -p "$WORK/icon" "$WORK/frames" "$WORK/AppIcon.iconset" docs
 
-swiftc -O -o "$WORK/render" tools/render/main.swift Sources/BreathFloat/BubbleView.swift Sources/BreathFloat/Pace.swift
+swiftc -O -o "$WORK/render" tools/render/main.swift Sources/BreathBubble/BubbleView.swift Sources/BreathBubble/Pace.swift
 "$WORK/render" icon "$WORK/icon"
 "$WORK/render" frames "$WORK/frames"
 
@@ -21,7 +21,7 @@ iconutil -c icns "$WORK/AppIcon.iconset" -o build/AppIcon.icns
 cp "$WORK/icon/icon_256.png" docs/icon.png
 
 # Panel pictures with default settings (the bare binary has its own empty settings)
-.build/release/BreathFloat --snapshot "$WORK"
+.build/release/BreathBubble --snapshot "$WORK"
 cp "$WORK/panel-light.png" "$WORK/panel-dark.png" docs/
 
 # Banner

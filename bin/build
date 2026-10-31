@@ -1,31 +1,32 @@
 #!/bin/sh
-# Builds BreathFloat.app in build/, ad-hoc signed. Run from the project folder.
+# Builds "Breath Bubble.app" in build/, ad-hoc signed. Run from the project folder.
 set -e
 cd "$(dirname "$0")/.."
 swift build -c release
-APP=build/BreathFloat.app
+APP="build/Breath Bubble.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # The icon comes from tools/make-assets; the app builds without it.
 [ -f build/AppIcon.icns ] && cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-cp .build/release/BreathFloat "$APP/Contents/MacOS/BreathFloat"
+cp .build/release/BreathBubble "$APP/Contents/MacOS/BreathBubble"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>BreathFloat</string>
+  <key>CFBundleName</key><string>Breath Bubble</string>
+  <!-- Kept from the first name, BreathFloat, so settings and Open at login carry over. -->
   <key>CFBundleIdentifier</key><string>com.simonwisdom.breathfloat</string>
-  <key>CFBundleExecutable</key><string>BreathFloat</string>
+  <key>CFBundleExecutable</key><string>BreathBubble</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0.0</string>
+  <key>CFBundleShortVersionString</key><string>1.1.0</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleVersion</key><string>2</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
 </dict>
 </plist>
 PLIST
 codesign --force --sign - "$APP"
-(cd build && rm -f BreathFloat.zip && ditto -c -k --keepParent BreathFloat.app BreathFloat.zip)
+(cd build && rm -f BreathBubble.zip && ditto -c -k --keepParent "Breath Bubble.app" BreathBubble.zip)
 echo "built $APP"

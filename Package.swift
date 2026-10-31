@@ -2,9 +2,9 @@
 import PackageDescription
 
 let package = Package(
-    name: "BreathFloat",
+    name: "BreathBubble",
     platforms: [.macOS(.v13)],
     targets: [
-        .executableTarget(name: "BreathFloat", path: "Sources/BreathFloat")
+        .executableTarget(name: "BreathBubble", path: "Sources/BreathBubble")
     ]
 )

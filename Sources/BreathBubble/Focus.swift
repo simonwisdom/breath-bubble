@@ -50,8 +50,8 @@ final class Focus {
             window.backgroundColor = .clear
             window.level = .screenSaver  // above the menu bar and the Dock
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-            // Hidden from screen shares; BREATHFLOAT_CAPTURE=1 lets tests take screenshots.
-            if ProcessInfo.processInfo.environment["BREATHFLOAT_CAPTURE"] == nil { window.sharingType = .none }
+            // Hidden from screen shares; BREATHBUBBLE_CAPTURE=1 lets tests take screenshots.
+            if ProcessInfo.processInfo.environment["BREATHBUBBLE_CAPTURE"] == nil { window.sharingType = .none }
             let view = FocusView(frame: NSRect(origin: .zero, size: screen.frame.size))
             view.onExit = { [weak self] in self?.leave() }
             window.contentView = view
