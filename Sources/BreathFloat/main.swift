@@ -1,5 +1,5 @@
 import AppKit
-import ServiceManagement
+import SwiftUI
 
 /// A borderless panel that floats over every app and Space, including full-screen ones.
 final class FloatPanel: NSPanel {
@@ -11,10 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let defaults = UserDefaults.standard
     private var statusItem: NSStatusItem!
     private var panel: FloatPanel!
+    private let popover = NSPopover()
     private let bubble = BubbleView()
     private let sound = Sound()
     private var timer: Timer?
-    private let start = Date()
 
     private var colorID: String { defaults.string(forKey: "color") ?? "sea" }
     private var pace: Pace { Pace.named(defaults.string(forKey: "pace") ?? "slow") }
@@ -26,13 +26,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "circle.circle", accessibilityDescription: "Breathing bubble")
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: "circle.circle", accessibilityDescription: "Breathing bubble")
+            button.action = #selector(togglePopover)
+            button.target = self
+        }
+        popover.behavior = .transient
+        popover.contentViewController = NSHostingController(rootView: PanelView())
         makePanel()
-        rebuildMenu()
         applySettings()
+        // The panel writes settings straight to UserDefaults; follow every change.
+        NotificationCenter.default.addObserver(self, selector: #selector(settingsChanged),
+                                               name: UserDefaults.didChangeNotification, object: nil)
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer!, forMode: .common)
         watchAway()
+    }
+
+    @objc private func togglePopover() {
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.makeKey()
+        }
+    }
+
+    @objc private func settingsChanged() {
+        DispatchQueue.main.async { self.applySettings() }
     }
 
     // MARK: Pause while away
@@ -67,6 +89,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         applySettings()
     }
 
+    // MARK: The floating bubble
+
     private func makePanel() {
         panel = FloatPanel(contentRect: NSRect(x: 0, y: 0, width: size, height: size),
                            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -89,11 +113,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func windowDidMove(_ notification: Notification) {
-        defaults.set(NSStringFromPoint(panel.frame.origin), forKey: "origin")
+        let saved = NSStringFromPoint(panel.frame.origin)
+        if defaults.string(forKey: "origin") != saved { defaults.set(saved, forKey: "origin") }
     }
 
     private func tick() {
-        let level = pace.level(at: Date().timeIntervalSince(start))
+        let level = pace.level(at: Date().timeIntervalSince(breathStart))
         if panel.isVisible { bubble.level = level }
         sound.level = level
         // Holding ⌘ lets the bubble catch the mouse so it can be dragged, even while clicks pass through.
@@ -101,132 +126,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if panel.ignoresMouseEvents == catchesMouse { panel.ignoresMouseEvents = !catchesMouse }
     }
 
-    /// Size, opacity and colour only: safe to call while the menu is open.
-    private func applyLook() {
-        var frame = panel.frame
-        let center = NSPoint(x: frame.midX, y: frame.midY)
-        frame.size = NSSize(width: size, height: size)
-        frame.origin = NSPoint(x: center.x - size / 2, y: center.y - size / 2)
-        panel.setFrame(frame, display: true)
+    private func applySettings() {
+        if abs(panel.frame.width - size) > 0.5 {
+            var frame = panel.frame
+            let center = NSPoint(x: frame.midX, y: frame.midY)
+            frame.size = NSSize(width: size, height: size)
+            frame.origin = NSPoint(x: center.x - size / 2, y: center.y - size / 2)
+            panel.setFrame(frame, display: true)
+        }
         panel.alphaValue = opacity
         bubble.color = BubbleColor.named(colorID)
-    }
-
-    private func applySettings() {
-        applyLook()
-        if shown && !away { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
-        if soundOn && shown && !away { sound.start() } else { sound.stop() }
-        rebuildMenu()
-    }
-
-    // MARK: Menu
-
-    private func rebuildMenu() {
-        let menu = NSMenu()
-        menu.addItem(item(shown ? "Hide bubble" : "Show bubble", #selector(toggleShown), key: "b"))
-        menu.addItem(header("Hold ⌘ and drag the bubble to move it"))
-        menu.addItem(.separator())
-
-        menu.addItem(header("Pace"))
-        for p in Pace.all {
-            let i = item(p.title, #selector(pickPace(_:)))
-            i.representedObject = p.id
-            i.state = p.id == pace.id ? .on : .off
-            menu.addItem(i)
-        }
-        menu.addItem(.separator())
-
-        menu.addItem(sliderItem("Size", min: 50, max: 240, value: Double(size), target: self, action: #selector(slideSize(_:))))
-        menu.addItem(sliderItem("Opacity", min: 0.15, max: 1, value: opacity, target: self, action: #selector(slideOpacity(_:))))
-        menu.addItem(swatchItem(chosen: colorID, target: self, action: #selector(pickColor(_:))))
-        menu.addItem(.separator())
-
-        let soundItem = item("Wave sound", #selector(toggleSound))
-        soundItem.state = soundOn ? .on : .off
-        menu.addItem(soundItem)
-
-        let through = item("Clicks pass through", #selector(toggleClickThrough))
-        through.state = clickThrough ? .on : .off
-        through.toolTip = "Hold ⌘ to drag the bubble either way."
-        menu.addItem(through)
-
-        let login = item("Open at login", #selector(toggleLogin))
-        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        menu.addItem(login)
-
-        menu.addItem(.separator())
-        menu.addItem(item("Quit", #selector(quit), key: "q"))
-        statusItem.menu = menu
-    }
-
-    private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
-        let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
-        i.target = self
-        return i
-    }
-
-    private func header(_ title: String) -> NSMenuItem {
-        let i = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        i.isEnabled = false
-        return i
-    }
-
-    @objc private func toggleShown() { defaults.set(!shown, forKey: "shown"); applySettings() }
-    @objc private func pickPace(_ sender: NSMenuItem) { defaults.set(sender.representedObject as? String, forKey: "pace"); rebuildMenu() }
-    @objc private func slideSize(_ sender: NSSlider) { defaults.set(sender.doubleValue.rounded(), forKey: "size"); applyLook() }
-    @objc private func slideOpacity(_ sender: NSSlider) { defaults.set(sender.doubleValue, forKey: "opacity"); applyLook() }
-
-    @objc private func pickColor(_ sender: Swatch) {
-        defaults.set(sender.color.id, forKey: "color")
-        for case let s as Swatch in sender.superview?.subviews ?? [] { s.chosen = s === sender }
-        applyLook()
-    }
-    @objc private func toggleSound() { defaults.set(!soundOn, forKey: "sound"); applySettings() }
-    @objc private func toggleClickThrough() { defaults.set(!clickThrough, forKey: "clickThrough"); applySettings() }
-    @objc private func quit() { NSApp.terminate(nil) }
-
-    @objc private func toggleLogin() {
-        let service = SMAppService.mainApp
-        do {
-            if service.status == .enabled { try service.unregister() } else { try service.register() }
-        } catch {
-            NSLog("Open at login failed: \(error)")
-        }
-        rebuildMenu()
+        let visible = shown && !away
+        if visible && !panel.isVisible { panel.orderFrontRegardless() }
+        if !visible && panel.isVisible { panel.orderOut(nil) }
+        if soundOn && visible { if !sound.isRunning { sound.start() } } else if sound.isRunning { sound.stop() }
     }
 }
 
-// Draws the bubble to a PNG and exits, for checking the look without putting a window on screen.
+// Draws the settings panel (light and dark) and each bubble colour to PNGs and exits,
+// for checking the look without opening anything on screen. It reads the saved settings but never writes them.
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--snapshot" {
-    // Top: one bubble per colour at half breath. Below: the menu's size, opacity and colour rows.
-    let colors = BubbleColor.all
-    let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(colors.count) * 110, height: 260))
-    strip.wantsLayer = true
-    strip.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-    for (n, color) in colors.enumerated() {
-        let v = BubbleView(frame: NSRect(x: CGFloat(n) * 110, y: 150, width: 110, height: 110))
+    let dir = URL(fileURLWithPath: CommandLine.arguments[2])
+    func save(_ view: NSView, _ name: String) {
+        let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.contentView = view
+        view.layoutSubtreeIfNeeded()
+        let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+        view.cacheDisplay(in: view.bounds, to: rep)
+        try! rep.representation(using: .png, properties: [:])!.write(to: dir.appendingPathComponent(name))
+    }
+    for (name, look) in [("panel-light.png", NSAppearance.Name.aqua), ("panel-dark.png", .darkAqua)] {
+        let host = NSHostingView(rootView: PanelView().background(Color(nsColor: .windowBackgroundColor)))
+        host.appearance = NSAppearance(named: look)
+        host.frame = NSRect(origin: .zero, size: host.fittingSize)
+        save(host, name)
+    }
+    let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(BubbleColor.all.count) * 110, height: 110))
+    for (n, color) in BubbleColor.all.enumerated() {
+        let v = BubbleView(frame: NSRect(x: CGFloat(n) * 110, y: 0, width: 110, height: 110))
         v.level = 0.6
         v.color = color
         strip.addSubview(v)
     }
-    let rows = [
-        sliderItem("Size", min: 50, max: 240, value: 110, target: strip, action: Selector(("display"))),
-        sliderItem("Opacity", min: 0.15, max: 1, value: 0.6, target: strip, action: Selector(("display"))),
-        swatchItem(chosen: "sea", target: strip, action: Selector(("display"))),
-    ]
-    var y: CGFloat = 146
-    for row in rows {
-        let v = row.view!
-        row.view = nil
-        y -= v.frame.height
-        let holder = NSView(frame: NSRect(x: 0, y: y, width: v.frame.width, height: v.frame.height))
-        v.setFrameOrigin(.zero)
-        holder.addSubview(v)
-        strip.addSubview(holder)
-    }
-    let rep = strip.bitmapImageRepForCachingDisplay(in: strip.bounds)!
-    strip.cacheDisplay(in: strip.bounds, to: rep)
-    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[2]))
+    save(strip, "colours.png")
     exit(0)
 }
 

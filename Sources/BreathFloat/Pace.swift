@@ -17,16 +17,17 @@ enum Step {
 /// A named breathing rhythm shown in the menu.
 struct Pace {
     let id: String
-    let title: String
+    let name: String
+    let detail: String
     let steps: [Step]
 
     var cycle: Double { steps.reduce(0) { $0 + $1.seconds } }
 
     static let all: [Pace] = [
-        Pace(id: "slow", title: "Slow and even · 5.5 in, 5.5 out", steps: [.inhale(5.5), .exhale(5.5)]),
-        Pace(id: "calm", title: "Long out-breath · 4 in, 6 out", steps: [.inhale(4), .exhale(6)]),
-        Pace(id: "gentle", title: "Gentle · 4 in, 4 out", steps: [.inhale(4), .exhale(4)]),
-        Pace(id: "box", title: "Box · 4 in, hold, 4 out, hold", steps: [.inhale(4), .holdFull(4), .exhale(4), .holdEmpty(4)]),
+        Pace(id: "slow", name: "Slow", detail: "5.5 in · 5.5 out", steps: [.inhale(5.5), .exhale(5.5)]),
+        Pace(id: "calm", name: "Long out", detail: "4 in · 6 out", steps: [.inhale(4), .exhale(6)]),
+        Pace(id: "gentle", name: "Gentle", detail: "4 in · 4 out", steps: [.inhale(4), .exhale(4)]),
+        Pace(id: "box", name: "Box", detail: "4 in, hold, out, hold", steps: [.inhale(4), .holdFull(4), .exhale(4), .holdEmpty(4)]),
     ]
 
     static func named(_ id: String) -> Pace { all.first { $0.id == id } ?? all[0] }
