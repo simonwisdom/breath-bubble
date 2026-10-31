@@ -16,7 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let bubble = BubbleView()
     private let sound = Sound()
     private var timer: Timer?
+    private let focus = Focus()
 
+    private var doubleClickFocus: Bool { defaults.object(forKey: "doubleClickFocus") as? Bool ?? true }
     private var colorID: String { defaults.string(forKey: "color") ?? "sea" }
     private var pace: Pace { Pace.named(defaults.string(forKey: "pace") ?? "slow") }
     private var size: CGFloat { CGFloat(defaults.object(forKey: "size") as? Double ?? 110) }
@@ -42,6 +44,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer!, forMode: .common)
         watchAway()
+        watchDoubleClick()
+    }
+
+    // MARK: Focus
+
+    /// A double-click on the bubble starts focus. While clicks pass through, the click goes to the
+    /// app underneath, so watch for it there (mouse clicks need no permission to watch); while the
+    /// bubble catches the mouse, the click arrives in this app.
+    private func watchDoubleClick() {
+        NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            guard let self, event.clickCount == 2, self.panel.frame.contains(NSEvent.mouseLocation) else { return }
+            self.startFocus()
+        }
+        NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            if let self, event.window === self.panel, event.clickCount == 2 { self.startFocus() }
+            return event
+        }
+        // Lets a script or Shortcut start and end focus, and lets tests do it without clicking.
+        let dc = DistributedNotificationCenter.default()
+        dc.addObserver(self, selector: #selector(focusRequested), name: .init("com.simonwisdom.breathfloat.focus"),
+                       object: nil, suspensionBehavior: .deliverImmediately)
+        dc.addObserver(self, selector: #selector(unfocusRequested), name: .init("com.simonwisdom.breathfloat.unfocus"),
+                       object: nil, suspensionBehavior: .deliverImmediately)
+    }
+
+    @objc private func focusRequested() { startFocus() }
+    @objc private func unfocusRequested() { focus.leave() }
+
+    private func startFocus() {
+        guard doubleClickFocus, panel.isVisible, !focus.isActive else { return }
+        if popover.isShown { popover.performClose(nil) }
+        focus.start(bubbleFrame: panel.frame, color: BubbleColor.named(colorID), opacity: CGFloat(opacity)) { [weak self] in
+            self?.applySettings()
+        }
+        applySettings()
     }
 
     @objc private func togglePopover() {
@@ -80,7 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                        suspensionBehavior: .deliverImmediately)
     }
 
-    @objc private func wentAway() { away = true; applySettings() }
+    @objc private func wentAway() { away = true; focus.endNow(); applySettings() }
 
     @objc private func cameBack() {
         // Waking the screen shows the lock screen first; stay paused until it's unlocked.
@@ -121,6 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func tick() {
         let level = pace.level(at: Date().timeIntervalSince(breathStart))
         if panel.isVisible { bubble.level = level }
+        focus.tick(level: level)
         sound.level = level
         // Holding ⌘ lets the bubble catch the mouse so it can be dragged, even while clicks pass through.
         let catchesMouse = !clickThrough || NSEvent.modifierFlags.contains(.command)
@@ -138,8 +176,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.alphaValue = opacity
         bubble.color = BubbleColor.named(colorID)
         let visible = shown && !away
-        if visible && !panel.isVisible { panel.orderFrontRegardless() }
-        if !visible && panel.isVisible { panel.orderOut(nil) }
+        let floating = visible && !focus.isActive  // in focus, the focus layer shows the bubble instead
+        if floating && !panel.isVisible { panel.orderFrontRegardless() }
+        if !floating && panel.isVisible { panel.orderOut(nil) }
         sound.volume = defaults.object(forKey: "volume") as? Double ?? 0.6
         sound.followBreath = defaults.object(forKey: "followBreath") as? Bool ?? true
         sound.choose(defaults.string(forKey: "soundChoice") ?? "waves")

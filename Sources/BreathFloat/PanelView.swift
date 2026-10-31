@@ -17,6 +17,7 @@ struct PanelView: View {
     @AppStorage("volume") private var volume = 0.6
     @AppStorage("followBreath") private var followBreath = true
     @AppStorage("clickThrough") private var clickThrough = true
+    @AppStorage("doubleClickFocus") private var doubleClickFocus = true
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
 
     private var color: BubbleColor { BubbleColor.named(colorID) }
@@ -109,6 +110,7 @@ struct PanelView: View {
 
     private var options: some View {
         VStack(spacing: 8) {
+            row("moon", "Double-click for focus", $doubleClickFocus)
             row("cursorarrow.motionlines", "Clicks pass through", $clickThrough)
             row("power", "Open at login", Binding(get: { openAtLogin }, set: { on in
                 do {

@@ -20,6 +20,7 @@ A friend keeps his phone open beside his laptop with a bubble that grows and shr
 - Size, opacity and seven colours, set from the menu bar
 - Optional sound that rises and falls with each breath: soft breath waves, or one of macOS's own Background Sounds (Ocean, Rain, Stream, Night, Fire and three noises), with its own volume
 - Clicks pass straight through it; hold <kbd>⌘</kbd> and drag to move it
+- Focus: double-click the bubble and the whole screen fades to black, leaving only the bubble, large, in the middle. Press any key or double-click to come back
 - Hidden from screen shares and recordings, and paused while your screen is locked
 
 <p align="center">
