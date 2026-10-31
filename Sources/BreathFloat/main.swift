@@ -34,6 +34,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         applySettings()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(timer!, forMode: .common)
+        watchAway()
+    }
+
+    // MARK: Pause while away
+
+    private var away = false
+
+    /// Hides the bubble and stops the sound while the screen is locked, asleep or the Mac sleeps.
+    private func watchAway() {
+        let ws = NSWorkspace.shared.notificationCenter
+        let dc = DistributedNotificationCenter.default()
+        for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification] {
+            ws.addObserver(self, selector: #selector(wentAway), name: name, object: nil)
+        }
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification] {
+            ws.addObserver(self, selector: #selector(cameBack), name: name, object: nil)
+        }
+        // A menu bar app is never the active app, and macOS holds distributed notifications
+        // for inactive apps unless they ask for immediate delivery.
+        dc.addObserver(self, selector: #selector(wentAway), name: .init("com.apple.screenIsLocked"), object: nil,
+                       suspensionBehavior: .deliverImmediately)
+        dc.addObserver(self, selector: #selector(cameBack), name: .init("com.apple.screenIsUnlocked"), object: nil,
+                       suspensionBehavior: .deliverImmediately)
+    }
+
+    @objc private func wentAway() { away = true; applySettings() }
+
+    @objc private func cameBack() {
+        // Waking the screen shows the lock screen first; stay paused until it's unlocked.
+        if let session = CGSessionCopyCurrentDictionary() as? [String: Any],
+           session["CGSSessionScreenIsLocked"] as? Bool == true { return }
+        away = false
+        applySettings()
     }
 
     private func makePanel() {
@@ -77,8 +110,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         frame.origin = NSPoint(x: center.x - size / 2, y: center.y - size / 2)
         panel.setFrame(frame, display: true)
         panel.alphaValue = opacity
-        if shown { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
-        if soundOn && shown { sound.start() } else { sound.stop() }
+        if shown && !away { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
+        if soundOn && shown && !away { sound.start() } else { sound.stop() }
         rebuildMenu()
     }
 
