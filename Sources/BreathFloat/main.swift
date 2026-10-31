@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
+        panel.sharingType = .none  // left out of screen shares and recordings
         panel.delegate = self
         panel.contentView = bubble
         if let saved = defaults.string(forKey: "origin") {
@@ -64,6 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let level = pace.level(at: Date().timeIntervalSince(start))
         if panel.isVisible { bubble.level = level }
         sound.level = level
+        // Holding ⌘ lets the bubble catch the mouse so it can be dragged, even while clicks pass through.
+        let catchesMouse = !clickThrough || NSEvent.modifierFlags.contains(.command)
+        if panel.ignoresMouseEvents == catchesMouse { panel.ignoresMouseEvents = !catchesMouse }
     }
 
     private func applySettings() {
@@ -73,7 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         frame.origin = NSPoint(x: center.x - size / 2, y: center.y - size / 2)
         panel.setFrame(frame, display: true)
         panel.alphaValue = opacity
-        panel.ignoresMouseEvents = clickThrough
         if shown { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
         if soundOn && shown { sound.start() } else { sound.stop() }
         rebuildMenu()
@@ -84,6 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func rebuildMenu() {
         let menu = NSMenu()
         menu.addItem(item(shown ? "Hide bubble" : "Show bubble", #selector(toggleShown), key: "b"))
+        menu.addItem(header("Hold ⌘ and drag the bubble to move it"))
         menu.addItem(.separator())
 
         menu.addItem(header("Pace"))
@@ -104,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let through = item("Clicks pass through", #selector(toggleClickThrough))
         through.state = clickThrough ? .on : .off
-        through.toolTip = "Turn off to drag the bubble somewhere else."
+        through.toolTip = "Hold ⌘ to drag the bubble either way."
         menu.addItem(through)
 
         let login = item("Open at login", #selector(toggleLogin))
