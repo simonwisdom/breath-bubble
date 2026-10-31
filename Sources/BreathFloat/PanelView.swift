@@ -13,6 +13,9 @@ struct PanelView: View {
     @AppStorage("opacity") private var opacity = 0.6
     @AppStorage("color") private var colorID = "sea"
     @AppStorage("sound") private var sound = false
+    @AppStorage("soundChoice") private var soundChoice = "waves"
+    @AppStorage("volume") private var volume = 0.6
+    @AppStorage("followBreath") private var followBreath = true
     @AppStorage("clickThrough") private var clickThrough = true
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
 
@@ -24,6 +27,7 @@ struct PanelView: View {
             header
             section("Pace") { paces }
             section("Look") { look }
+            section("Sound") { soundControls }
             section("Options") { options }
             footer
         }
@@ -84,9 +88,27 @@ struct PanelView: View {
         }
     }
 
+    private var soundControls: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Picker("", selection: $soundChoice) {
+                    ForEach(SoundChoice.all, id: \.id) { Text($0.name).tag($0.id) }
+                }
+                .labelsHidden()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Toggle("", isOn: $sound).toggleStyle(.switch).controlSize(.small).labelsHidden()
+            }
+            Group {
+                sliderRow("Volume", $volume, 0...1)
+                row("lungs", "Rise and fall with breath", $followBreath)
+            }
+            .disabled(!sound)
+            .opacity(sound ? 1 : 0.45)
+        }
+    }
+
     private var options: some View {
         VStack(spacing: 8) {
-            row("waveform", "Wave sound", $sound)
             row("cursorarrow.motionlines", "Clicks pass through", $clickThrough)
             row("power", "Open at login", Binding(get: { openAtLogin }, set: { on in
                 do {

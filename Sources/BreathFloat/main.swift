@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import AVFoundation
 
 /// A borderless panel that floats over every app and Space, including full-screen ones.
 final class FloatPanel: NSPanel {
@@ -139,6 +140,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let visible = shown && !away
         if visible && !panel.isVisible { panel.orderFrontRegardless() }
         if !visible && panel.isVisible { panel.orderOut(nil) }
+        sound.volume = defaults.object(forKey: "volume") as? Double ?? 0.6
+        sound.followBreath = defaults.object(forKey: "followBreath") as? Bool ?? true
+        sound.choose(defaults.string(forKey: "soundChoice") ?? "waves")
         if soundOn && visible { if !sound.isRunning { sound.start() } } else if sound.isRunning { sound.stop() }
     }
 }
@@ -169,6 +173,16 @@ if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--snapshot" {
         strip.addSubview(v)
     }
     save(strip, "colours.png")
+    exit(0)
+}
+
+// Prints each sound and how many seconds of it load, without playing anything.
+if CommandLine.arguments.dropFirst().first == "--check-sounds" {
+    for choice in SoundChoice.all {
+        guard let path = choice.file else { print("\(choice.name): made here"); continue }
+        let file = try? AVAudioFile(forReading: URL(fileURLWithPath: path))
+        print("\(choice.name): \(file.map { String(format: "%.1f s", Double($0.length) / $0.processingFormat.sampleRate) } ?? "FAILED")")
+    }
     exit(0)
 }
 
