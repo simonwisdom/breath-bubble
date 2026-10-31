@@ -16,9 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var timer: Timer?
     private let start = Date()
 
-    private let sizes: [(String, CGFloat)] = [("Small", 70), ("Medium", 110), ("Large", 170)]
-    private let opacities: [(String, Double)] = [("Faint", 0.3), ("Soft", 0.6), ("Clear", 0.9)]
-
+    private var colorID: String { defaults.string(forKey: "color") ?? "sea" }
     private var pace: Pace { Pace.named(defaults.string(forKey: "pace") ?? "slow") }
     private var size: CGFloat { CGFloat(defaults.object(forKey: "size") as? Double ?? 110) }
     private var opacity: Double { defaults.object(forKey: "opacity") as? Double ?? 0.6 }
@@ -103,13 +101,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if panel.ignoresMouseEvents == catchesMouse { panel.ignoresMouseEvents = !catchesMouse }
     }
 
-    private func applySettings() {
+    /// Size, opacity and colour only: safe to call while the menu is open.
+    private func applyLook() {
         var frame = panel.frame
         let center = NSPoint(x: frame.midX, y: frame.midY)
         frame.size = NSSize(width: size, height: size)
         frame.origin = NSPoint(x: center.x - size / 2, y: center.y - size / 2)
         panel.setFrame(frame, display: true)
         panel.alphaValue = opacity
+        bubble.color = BubbleColor.named(colorID)
+    }
+
+    private func applySettings() {
+        applyLook()
         if shown && !away { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
         if soundOn && shown && !away { sound.start() } else { sound.stop() }
         rebuildMenu()
@@ -132,8 +136,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         menu.addItem(.separator())
 
-        menu.addItem(submenu("Size", sizes.map { ($0.0, Double($0.1)) }, current: Double(size), action: #selector(pickSize(_:))))
-        menu.addItem(submenu("Opacity", opacities, current: opacity, action: #selector(pickOpacity(_:))))
+        menu.addItem(sliderItem("Size", min: 50, max: 240, value: Double(size), target: self, action: #selector(slideSize(_:))))
+        menu.addItem(sliderItem("Opacity", min: 0.15, max: 1, value: opacity, target: self, action: #selector(slideOpacity(_:))))
+        menu.addItem(swatchItem(chosen: colorID, target: self, action: #selector(pickColor(_:))))
+        menu.addItem(.separator())
 
         let soundItem = item("Wave sound", #selector(toggleSound))
         soundItem.state = soundOn ? .on : .off
@@ -165,23 +171,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         return i
     }
 
-    private func submenu(_ title: String, _ options: [(String, Double)], current: Double, action: Selector) -> NSMenuItem {
-        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        let sub = NSMenu()
-        for (name, value) in options {
-            let i = item(name, action)
-            i.representedObject = value
-            i.state = abs(value - current) < 0.001 ? .on : .off
-            sub.addItem(i)
-        }
-        parent.submenu = sub
-        return parent
-    }
-
     @objc private func toggleShown() { defaults.set(!shown, forKey: "shown"); applySettings() }
     @objc private func pickPace(_ sender: NSMenuItem) { defaults.set(sender.representedObject as? String, forKey: "pace"); rebuildMenu() }
-    @objc private func pickSize(_ sender: NSMenuItem) { defaults.set(sender.representedObject as? Double, forKey: "size"); applySettings() }
-    @objc private func pickOpacity(_ sender: NSMenuItem) { defaults.set(sender.representedObject as? Double, forKey: "opacity"); applySettings() }
+    @objc private func slideSize(_ sender: NSSlider) { defaults.set(sender.doubleValue.rounded(), forKey: "size"); applyLook() }
+    @objc private func slideOpacity(_ sender: NSSlider) { defaults.set(sender.doubleValue, forKey: "opacity"); applyLook() }
+
+    @objc private func pickColor(_ sender: Swatch) {
+        defaults.set(sender.color.id, forKey: "color")
+        for case let s as Swatch in sender.superview?.subviews ?? [] { s.chosen = s === sender }
+        applyLook()
+    }
     @objc private func toggleSound() { defaults.set(!soundOn, forKey: "sound"); applySettings() }
     @objc private func toggleClickThrough() { defaults.set(!clickThrough, forKey: "clickThrough"); applySettings() }
     @objc private func quit() { NSApp.terminate(nil) }
@@ -199,12 +198,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
 // Draws the bubble to a PNG and exits, for checking the look without putting a window on screen.
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--snapshot" {
-    let view = BubbleView(frame: NSRect(x: 0, y: 0, width: 330, height: 110))
-    let strip = NSView(frame: view.frame)
-    for (n, level) in [0.0, 0.5, 1.0].enumerated() {
-        let v = BubbleView(frame: NSRect(x: CGFloat(n) * 110, y: 0, width: 110, height: 110))
-        v.level = level
+    // Top: one bubble per colour at half breath. Below: the menu's size, opacity and colour rows.
+    let colors = BubbleColor.all
+    let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(colors.count) * 110, height: 260))
+    strip.wantsLayer = true
+    strip.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+    for (n, color) in colors.enumerated() {
+        let v = BubbleView(frame: NSRect(x: CGFloat(n) * 110, y: 150, width: 110, height: 110))
+        v.level = 0.6
+        v.color = color
         strip.addSubview(v)
+    }
+    let rows = [
+        sliderItem("Size", min: 50, max: 240, value: 110, target: strip, action: Selector(("display"))),
+        sliderItem("Opacity", min: 0.15, max: 1, value: 0.6, target: strip, action: Selector(("display"))),
+        swatchItem(chosen: "sea", target: strip, action: Selector(("display"))),
+    ]
+    var y: CGFloat = 146
+    for row in rows {
+        let v = row.view!
+        row.view = nil
+        y -= v.frame.height
+        let holder = NSView(frame: NSRect(x: 0, y: y, width: v.frame.width, height: v.frame.height))
+        v.setFrameOrigin(.zero)
+        holder.addSubview(v)
+        strip.addSubview(holder)
     }
     let rep = strip.bitmapImageRepForCachingDisplay(in: strip.bounds)!
     strip.cacheDisplay(in: strip.bounds, to: rep)
