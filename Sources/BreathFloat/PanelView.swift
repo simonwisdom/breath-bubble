@@ -43,7 +43,7 @@ struct PanelView: View {
             Preview(color: color, pace: Pace.named(paceID))
                 .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Breathe").font(.system(size: 15, weight: .semibold))
+                Text("BreathFloat").font(.system(size: 15, weight: .semibold))
                 Text(shown ? "Bubble on screen" : "Bubble hidden")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
             }

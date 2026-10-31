@@ -1,9 +1,56 @@
-# BreathFloat (working name)
+<p align="center">
+  <img src="docs/banner.png" alt="BreathFloat: a soft bubble that floats over your work and breathes slowly, so you do too.">
+</p>
 
-A soft breathing bubble that floats over every app, controlled from the menu bar.
+<p align="center"><a href="https://github.com/simonwisdom/breathfloat/releases/latest/download/BreathFloat.zip"><b>Download for macOS</b></a> · Free · macOS 13 or later</p>
 
-- Build: `bin/build` (makes `build/BreathFloat.app`, ad-hoc signed)
-- Panel from the menu bar icon: show/hide, pace, size and opacity sliders, colour, sound (our breath waves or one of macOS's 8 Background Sounds) with volume, clicks pass through, open at login
-- Hold ⌘ and drag the bubble to move it; its place is remembered. It is left out of screen shares and recordings.
-- `BreathFloat --snapshot <folder>` draws the panel (light and dark) and each colour to PNGs without opening a window.
-- `BreathFloat --check-sounds` lists the sounds and checks each file loads, without playing them.
+<p align="center">
+  <img src="docs/breathing.gif" width="480" alt="A soft bubble in the corner of the screen grows and shrinks over a document"><br>
+  <sub><b>Breathe with it, without stopping.</b> The bubble grows as you breathe in and shrinks as you breathe out.</sub>
+</p>
+
+## Why I made it
+
+A friend keeps his phone open beside his laptop with a bubble that grows and shrinks, and plays its sound in his earbuds. While working, he'd noticed he breathes fast and shallow, and following the bubble slows him down. I wanted the same thing on the Mac, floating over whatever I'm doing, with no phone needed.
+
+## What it does
+
+- A soft bubble that floats over every app and Space, full-screen ones included
+- Four paces: Slow (5.5 in, 5.5 out), Long out (4 in, 6 out), Gentle (4 in, 4 out) and Box
+- Size, opacity and seven colours, set from the menu bar
+- Optional sound that rises and falls with each breath: soft breath waves, or one of macOS's own Background Sounds (Ocean, Rain, Stream, Night, Fire and three noises), with its own volume
+- Clicks pass straight through it; hold <kbd>⌘</kbd> and drag to move it
+- Hidden from screen shares and recordings, and paused while your screen is locked
+
+<p align="center">
+  <img src="docs/panel-light.png" width="300" alt="The settings panel: pace cards, size and opacity sliders, colours, sound and options">
+</p>
+
+## Install
+
+1. Download `BreathFloat.zip` from the [latest release](https://github.com/simonwisdom/breathfloat/releases/latest).
+2. Unzip it and drag `BreathFloat.app` into Applications.
+3. Open it. The first time, macOS says it can't verify the app: open System Settings → Privacy & Security, scroll down and click **Open Anyway**.
+4. Click the bubble icon in the menu bar to choose a pace, colour and sound. Turn on **Open at login** to have it every day.
+
+Requires macOS 13 (Ventura) or later.
+
+## Privacy
+
+- No analytics, no network access, no account.
+- Settings stay on your Mac.
+
+## Build from source
+
+Needs Xcode 15 or later (or the Swift toolchain).
+
+```sh
+tools/make-assets   # optional: app icon and README pictures (needs Google Chrome and ffmpeg)
+bin/build           # makes build/BreathFloat.app and build/BreathFloat.zip
+```
+
+`BreathFloat --snapshot <folder>` draws the settings panel to PNGs, and `BreathFloat --check-sounds` checks the sound files load, both without opening anything on screen.
+
+## License
+
+MIT. See `LICENSE`.

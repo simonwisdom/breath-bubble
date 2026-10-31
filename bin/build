@@ -5,7 +5,9 @@ cd "$(dirname "$0")/.."
 swift build -c release
 APP=build/BreathFloat.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+# The icon comes from tools/make-assets; the app builds without it.
+[ -f build/AppIcon.icns ] && cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp .build/release/BreathFloat "$APP/Contents/MacOS/BreathFloat"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -16,7 +18,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleIdentifier</key><string>com.simonwisdom.breathfloat</string>
   <key>CFBundleExecutable</key><string>BreathFloat</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1</string>
+  <key>CFBundleShortVersionString</key><string>1.0.0</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
@@ -24,4 +27,5 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 codesign --force --sign - "$APP"
+(cd build && rm -f BreathFloat.zip && ditto -c -k --keepParent BreathFloat.app BreathFloat.zip)
 echo "built $APP"

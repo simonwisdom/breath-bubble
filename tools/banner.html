@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+    background: radial-gradient(circle at 18% 12%, #3f97a8 0%, #1d5f78 45%, #0f3b55 100%);
+    color: #fff; position: relative;
+  }
+  .left { position: absolute; left: 88px; top: 120px; width: 560px; }
+  .icon { width: 120px; height: 120px; margin-left: -12px; }
+  h1 { font-size: 84px; font-weight: 800; letter-spacing: -2px; margin: 16px 0 10px; }
+  p { font-size: 28px; line-height: 1.4; margin: 0 0 28px; color: #e3f4f6; }
+  .pill { display: inline-block; font-size: 19px; font-weight: 600; padding: 9px 18px;
+          border-radius: 999px; background: rgba(255,255,255,0.16); }
+  .panel { position: absolute; right: 70px; top: 46px; width: 300px; border-radius: 14px;
+           box-shadow: 0 24px 60px rgba(0,20,40,0.45); }
+  .rings { position: absolute; left: 720px; top: 360px; width: 220px; height: 220px; }
+  .rings span { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid rgba(190,236,242,0.35); }
+  .rings span:nth-child(2) { inset: -40px; border-color: rgba(190,236,242,0.18); }
+  .rings span:nth-child(3) { inset: -80px; border-color: rgba(190,236,242,0.08); }
+  .ball { position: absolute; left: 758px; top: 398px; width: 144px; height: 144px; border-radius: 50%;
+          background: radial-gradient(circle at 35% 30%, #eefcff 0%, #9fdbe4 50%, #5aa8b8 100%);
+          box-shadow: 0 0 60px rgba(160,230,240,0.45); }
+</style></head>
+<body>
+  <div class="left">
+    <img class="icon" src="icon.png" alt="">
+    <h1>BreathFloat</h1>
+    <p>A soft bubble that floats over your work and breathes slowly, so you do too.</p>
+    <span class="pill">Free · Mac menu bar app</span>
+  </div>
+  <div class="rings"><span></span><span></span><span></span></div>
+  <div class="ball"></div>
+  <img class="panel" src="panel-light.png" alt="">
+</body></html>

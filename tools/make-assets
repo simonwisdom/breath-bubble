@@ -1,0 +1,40 @@
+#!/bin/sh
+# Makes the app icon (build/AppIcon.icns) and the README pictures in docs/.
+# Run from the project folder after bin/build. Needs Google Chrome and ffmpeg.
+set -e
+cd "$(dirname "$0")/.."
+WORK=build/assets
+rm -rf "$WORK"
+mkdir -p "$WORK/icon" "$WORK/frames" "$WORK/AppIcon.iconset" docs
+
+swiftc -O -o "$WORK/render" tools/render/main.swift Sources/BreathFloat/BubbleView.swift Sources/BreathFloat/Pace.swift
+"$WORK/render" icon "$WORK/icon"
+"$WORK/render" frames "$WORK/frames"
+
+# App icon
+for s in 16 32 128 256 512; do
+  cp "$WORK/icon/icon_$s.png" "$WORK/AppIcon.iconset/icon_${s}x${s}.png"
+  d=$((s * 2)); [ $d = 1024 ] || [ -f "$WORK/icon/icon_$d.png" ]
+  cp "$WORK/icon/icon_$d.png" "$WORK/AppIcon.iconset/icon_${s}x${s}@2x.png"
+done
+iconutil -c icns "$WORK/AppIcon.iconset" -o build/AppIcon.icns
+cp "$WORK/icon/icon_256.png" docs/icon.png
+
+# Panel pictures with default settings (the bare binary has its own empty settings)
+.build/release/BreathFloat --snapshot "$WORK"
+cp "$WORK/panel-light.png" "$WORK/panel-dark.png" docs/
+
+# Banner
+cp tools/banner.html tools/scene.html "$WORK/"
+cp docs/icon.png docs/panel-light.png "$WORK/"
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+"$CHROME" --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+  --window-size=1280,640 --screenshot="$PWD/docs/banner.png" "file://$PWD/$WORK/banner.html" 2>/dev/null
+"$CHROME" --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+  --window-size=720,450 --screenshot="$PWD/$WORK/scene.png" "file://$PWD/$WORK/scene.html" 2>/dev/null
+
+# Breathing animation: the bubble over a desk scene, one full slow breath, looping
+ffmpeg -loglevel error -y -i "$WORK/scene.png" -framerate 15 -i "$WORK/frames/f%03d.png" \
+  -filter_complex "[1]scale=150:150,format=rgba,colorchannelmixer=aa=0.75[b];[0][b]overlay=540:270:shortest=1,split[x][y];[x]palettegen=max_colors=128[p];[y][p]paletteuse=dither=bayer" \
+  -loop 0 docs/breathing.gif
+echo "assets made"
