@@ -18,6 +18,9 @@ struct PanelView: View {
     @AppStorage("followBreath") private var followBreath = true
     @AppStorage("clickThrough") private var clickThrough = true
     @AppStorage("doubleClickFocus") private var doubleClickFocus = true
+    @AppStorage("focusStyle") private var focusStyle = FocusStyle.tide.rawValue
+    @AppStorage("focusIn") private var focusIn = 2.5
+    @AppStorage("focusOut") private var focusOut = 0.9
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
 
     private var color: BubbleColor { BubbleColor.named(colorID) }
@@ -111,6 +114,9 @@ struct PanelView: View {
     private var options: some View {
         VStack(spacing: 8) {
             row("moon", "Double-click for focus", $doubleClickFocus)
+            focusControls
+                .disabled(!doubleClickFocus)
+                .opacity(doubleClickFocus ? 1 : 0.45)
             row("cursorarrow.motionlines", "Clicks pass through", $clickThrough)
             row("power", "Open at login", Binding(get: { openAtLogin }, set: { on in
                 do {
@@ -119,6 +125,28 @@ struct PanelView: View {
                 openAtLogin = SMAppService.mainApp.status == .enabled
             }))
         }
+    }
+
+    /// How focus fills the screen, and how long going in and coming out take.
+    private var focusControls: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Picker("", selection: $focusStyle) {
+                    ForEach(FocusStyle.allCases, id: \.rawValue) { Text($0.name).tag($0.rawValue) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                Button("Try") {
+                    DistributedNotificationCenter.default().postNotificationName(
+                        .init("com.simonwisdom.breathbubble.focus"), object: nil, userInfo: nil, deliverImmediately: true)
+                }
+                .controlSize(.small)
+                .help("Start focus now; any key or a double-click comes back")
+            }
+            secondsRow("In", $focusIn, 0.5...8)
+            secondsRow("Out", $focusOut, 0.3...4)
+        }
+        .padding(.leading, 28)
     }
 
     private var footer: some View {
@@ -145,6 +173,17 @@ struct PanelView: View {
         HStack(spacing: 10) {
             Text(title).font(.system(size: 13)).frame(width: 58, alignment: .leading)
             Slider(value: value, in: range)
+        }
+    }
+
+    private func secondsRow(_ title: String, _ value: Binding<Double>, _ range: ClosedRange<Double>) -> some View {
+        HStack(spacing: 10) {
+            Text(title).font(.system(size: 13)).frame(width: 30, alignment: .leading)
+            Slider(value: Binding(get: { value.wrappedValue },
+                                  set: { value.wrappedValue = ($0 * 10).rounded() / 10 }), in: range)
+            Text(String(format: "%.1f s", value.wrappedValue))
+                .font(.system(size: 12).monospacedDigit()).foregroundStyle(.secondary)
+                .frame(width: 38, alignment: .trailing)
         }
     }
 

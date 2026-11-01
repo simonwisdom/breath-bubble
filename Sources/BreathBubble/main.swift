@@ -45,6 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         RunLoop.main.add(timer!, forMode: .common)
         watchAway()
         watchDoubleClick()
+        // BREATHBUBBLE_FOCUS_TEST=1 starts focus a second after launch, so a test can watch it without clicking.
+        if ProcessInfo.processInfo.environment["BREATHBUBBLE_FOCUS_TEST"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.startFocus() }
+        }
     }
 
     // MARK: Focus
@@ -75,7 +79,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func startFocus() {
         guard doubleClickFocus, panel.isVisible, !focus.isActive else { return }
         if popover.isShown { popover.performClose(nil) }
-        focus.start(bubbleFrame: panel.frame, color: BubbleColor.named(colorID), opacity: CGFloat(opacity)) { [weak self] in
+        focus.start(bubbleFrame: panel.frame, color: BubbleColor.named(colorID), opacity: CGFloat(opacity),
+                    style: FocusStyle.named(defaults.string(forKey: "focusStyle")),
+                    enterSeconds: defaults.object(forKey: "focusIn") as? Double ?? 2.5,
+                    leaveSeconds: defaults.object(forKey: "focusOut") as? Double ?? 0.9) { [weak self] in
             self?.applySettings()
         }
         applySettings()
@@ -212,6 +219,35 @@ if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--snapshot" {
         strip.addSubview(v)
     }
     save(strip, "colours.png")
+    // Each focus style at five moments going in, over a light background, bubble starting top right.
+    let (fw, fh) = (320, 200)
+    for style in [FocusStyle.tide, .ink] {
+        guard let ctx = CGContext(data: nil, width: fw * 5, height: fh, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { continue }
+        ctx.setFillColor(NSColor(calibratedRed: 0.85, green: 0.78, blue: 0.86, alpha: 1).cgColor)
+        ctx.fill(CGRect(x: 0, y: 0, width: fw * 5, height: fh))
+        for n in 0..<5 {
+            let p = Float(n + 1) / 5
+            let e = 0.5 - 0.5 * cos(Float.pi * p)
+            var u = InkUniforms()
+            u.origin = SIMD2(0.86, 0.8)
+            u.bubble = u.origin + (SIMD2(0.5, 0.5) - u.origin) * e
+            u.aspect = Float(fw) / Float(fh)
+            u.time = p * 2.5
+            u.progress = p
+            u.maxFromBubble = 1.25
+            u.maxFromOrigin = 1.6
+            u.mode = style == .ink ? 2 : 1
+            if let frame = InkLayer.snapshot(u, width: fw, height: fh) {
+                ctx.draw(frame, in: CGRect(x: n * fw, y: 0, width: fw, height: fh))
+            }
+        }
+        if let image = ctx.makeImage() {
+            try! NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!
+                .write(to: dir.appendingPathComponent("focus-\(style.rawValue).png"))
+        }
+    }
     exit(0)
 }
 
