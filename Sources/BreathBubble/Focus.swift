@@ -41,9 +41,9 @@ final class Focus {
     private var onDone: (() -> Void)?
 
     private var style = FocusStyle.tide
-    /// Going in and coming out each take one second.
-    private let enterSeconds = 1.0
-    private let leaveSeconds = 1.0
+    /// Going in and coming out each take a second and a half.
+    private let enterSeconds = 1.5
+    private let leaveSeconds = 1.5
 
     var isActive: Bool { !windows.isEmpty }
 
