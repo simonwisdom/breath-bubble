@@ -20,7 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var doubleClickFocus: Bool { defaults.object(forKey: "doubleClickFocus") as? Bool ?? true }
     private var colorID: String { defaults.string(forKey: "color") ?? "sea" }
-    private var pace: Pace { Pace.named(defaults.string(forKey: "pace") ?? "slow") }
+    private var pace: Pace {
+        Pace.named(defaults.string(forKey: "pace") ?? "slow",
+                   breathIn: defaults.object(forKey: "breathIn") as? Double ?? 5.5,
+                   breathOut: defaults.object(forKey: "breathOut") as? Double ?? 5.5)
+    }
     private var size: CGFloat { CGFloat(defaults.object(forKey: "size") as? Double ?? 110) }
     private var opacity: Double { defaults.object(forKey: "opacity") as? Double ?? 0.6 }
     private var clickThrough: Bool { defaults.object(forKey: "clickThrough") as? Bool ?? true }
@@ -80,9 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard doubleClickFocus, panel.isVisible, !focus.isActive else { return }
         if popover.isShown { popover.performClose(nil) }
         focus.start(bubbleFrame: panel.frame, color: BubbleColor.named(colorID), opacity: CGFloat(opacity),
-                    style: FocusStyle.named(defaults.string(forKey: "focusStyle")),
-                    enterSeconds: defaults.object(forKey: "focusIn") as? Double ?? 2.5,
-                    leaveSeconds: defaults.object(forKey: "focusOut") as? Double ?? 0.9) { [weak self] in
+                    style: FocusStyle.named(defaults.string(forKey: "focusStyle"))) { [weak self] in
             self?.applySettings()
         }
         applySettings()

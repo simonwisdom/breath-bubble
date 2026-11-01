@@ -41,20 +41,19 @@ final class Focus {
     private var onDone: (() -> Void)?
 
     private var style = FocusStyle.tide
-    private var enterSeconds = 2.5
-    private var leaveSeconds = 0.9
+    /// Going in and coming out each take one second.
+    private let enterSeconds = 1.0
+    private let leaveSeconds = 1.0
 
     var isActive: Bool { !windows.isEmpty }
 
     /// Starts focus. `bubbleFrame` is where the floating bubble sits now, in screen coordinates.
     func start(bubbleFrame: NSRect, color: BubbleColor, opacity: CGFloat, style: FocusStyle,
-               enterSeconds: Double, leaveSeconds: Double, onDone: @escaping () -> Void) {
+               onDone: @escaping () -> Void) {
         guard !isActive else { return }
         self.onDone = onDone
         // With Reduce motion on, keep to the plain fade.
         self.style = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? .fade : style
-        self.enterSeconds = max(0.1, enterSeconds)
-        self.leaveSeconds = max(0.1, leaveSeconds)
         previousApp = NSWorkspace.shared.frontmostApplication
         let home = NSScreen.screens.first { $0.frame.intersects(bubbleFrame) } ?? NSScreen.main ?? NSScreen.screens[0]
 

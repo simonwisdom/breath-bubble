@@ -19,11 +19,12 @@ struct PanelView: View {
     @AppStorage("clickThrough") private var clickThrough = true
     @AppStorage("doubleClickFocus") private var doubleClickFocus = true
     @AppStorage("focusStyle") private var focusStyle = FocusStyle.tide.rawValue
-    @AppStorage("focusIn") private var focusIn = 2.5
-    @AppStorage("focusOut") private var focusOut = 0.9
+    @AppStorage("breathIn") private var breathIn = 5.5
+    @AppStorage("breathOut") private var breathOut = 5.5
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
 
     private var color: BubbleColor { BubbleColor.named(colorID) }
+    private var pace: Pace { Pace.named(paceID, breathIn: breathIn, breathOut: breathOut) }
     private var tint: Color { Color(nsColor: color.deep) }
 
     var body: some View {
@@ -44,7 +45,7 @@ struct PanelView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Preview(color: color, pace: Pace.named(paceID))
+            Preview(color: color, pace: pace)
                 .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Breath Bubble").font(.system(size: 15, weight: .semibold))
@@ -57,6 +58,22 @@ struct PanelView: View {
     }
 
     private var paces: some View {
+        VStack(spacing: 8) {
+            paceCards
+            secondsRow("In", Binding(get: { pace.inSeconds }, set: { makeCustom(); breathIn = $0 }), 2...10)
+            secondsRow("Out", Binding(get: { pace.outSeconds }, set: { makeCustom(); breathOut = $0 }), 2...12)
+        }
+    }
+
+    /// Moving a length slider switches to Custom, starting from the chosen pace's lengths.
+    private func makeCustom() {
+        guard paceID != "custom" else { return }
+        breathIn = pace.inSeconds
+        breathOut = pace.outSeconds
+        paceID = "custom"
+    }
+
+    private var paceCards: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
             ForEach(Pace.all, id: \.id) { p in
                 let on = p.id == paceID
@@ -127,10 +144,9 @@ struct PanelView: View {
         }
     }
 
-    /// How focus fills the screen, and how long going in and coming out take.
+    /// How focus fills the screen.
     private var focusControls: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 10) {
+        HStack(spacing: 10) {
                 Picker("", selection: $focusStyle) {
                     ForEach(FocusStyle.allCases, id: \.rawValue) { Text($0.name).tag($0.rawValue) }
                 }
@@ -142,9 +158,6 @@ struct PanelView: View {
                 }
                 .controlSize(.small)
                 .help("Start focus now; any key or a double-click comes back")
-            }
-            secondsRow("In", $focusIn, 0.5...8)
-            secondsRow("Out", $focusOut, 0.3...4)
         }
         .padding(.leading, 28)
     }

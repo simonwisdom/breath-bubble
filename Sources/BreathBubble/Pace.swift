@@ -30,7 +30,20 @@ struct Pace {
         Pace(id: "box", name: "Box", detail: "4 in, hold, out, hold", steps: [.inhale(4), .holdFull(4), .exhale(4), .holdEmpty(4)]),
     ]
 
-    static func named(_ id: String) -> Pace { all.first { $0.id == id } ?? all[0] }
+    /// Breathing in and out for lengths set by hand.
+    static func custom(breathIn: Double, breathOut: Double) -> Pace {
+        Pace(id: "custom", name: "Custom", detail: "", steps: [.inhale(max(1, breathIn)), .exhale(max(1, breathOut))])
+    }
+
+    /// The chosen pace; "custom" uses the lengths set by hand.
+    static func named(_ id: String, breathIn: Double, breathOut: Double) -> Pace {
+        if id == "custom" { return custom(breathIn: breathIn, breathOut: breathOut) }
+        return all.first { $0.id == id } ?? all[0]
+    }
+
+    /// Seconds breathing in and out, for the sliders.
+    var inSeconds: Double { steps.first { if case .inhale = $0 { return true }; return false }?.seconds ?? 4 }
+    var outSeconds: Double { steps.first { if case .exhale = $0 { return true }; return false }?.seconds ?? 4 }
 
     /// How full the lungs are at time `t`: 0 is empty, 1 is full.
     func level(at t: Double) -> Double {
