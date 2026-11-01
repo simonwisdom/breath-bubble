@@ -54,7 +54,7 @@ case "icon":
     }
 case "frames":
     // One slow breath (11 s) at 15 frames a second, bubble only, transparent background.
-    let pace = Pace.named("slow")
+    let pace = Pace.named("slow", breathIn: 5.5, breathOut: 5.5)
     let count = Int(pace.cycle * 15)
     for i in 0..<count {
         let view = BubbleView(frame: NSRect(x: 0, y: 0, width: 220, height: 220))
@@ -64,6 +64,65 @@ case "frames":
         try! rep.representation(using: .png, properties: [:])!
             .write(to: URL(fileURLWithPath: String(format: "%@/f%03d.png", args[2], i)))
     }
+case "focus":
+    // Focus in the Ink style over the 720x450 desk scene, at 15 frames a second: a second on the desk,
+    // 1.5 s going in, three seconds of focus, 1.5 s coming out. Follows Focus.apply in the app.
+    let (w, h) = (720, 450)
+    let pace = Pace.named("slow", breathIn: 5.5, breathOut: 5.5)
+    let from = NSRect(x: 540, y: 30, width: 150, height: 150)  // where breathing.gif puts the bubble
+    let side = Double(h) * 0.5
+    let to = NSRect(x: (Double(w) - side) / 2, y: (Double(h) - side) / 2, width: side, height: side)
+    func ease(_ p: Double) -> Double { (1 - cos(Double.pi * p)) / 2 }
+    func centre(_ r: NSRect) -> SIMD2<Float> { SIMD2(Float(r.midX) / Float(w), Float(r.midY) / Float(h)) }
+    let aspect = Float(w) / Float(h)
+    func farthest(_ p: SIMD2<Float>) -> Float {
+        [SIMD2<Float>(0, 0), SIMD2(1, 0), SIMD2(0, 1), SIMD2(1, 1)]
+            .map { (($0.x - p.x) * aspect * ($0.x - p.x) * aspect + ($0.y - p.y) * ($0.y - p.y)).squareRoot() }
+            .max() ?? 1
+    }
+    let fps = 15.0
+    for i in 0..<Int(7.5 * fps) {
+        let t = Double(i) / fps
+        // progress 0...1 and, while leaving, how far the darkness has faded
+        let progress: Double, fade: Double, leaving: Bool
+        switch t {
+        case ..<1: (progress, fade, leaving) = (0, 1, false)
+        case ..<2.5: (progress, fade, leaving) = ((t - 1) / 1.5, 1, false)
+        case ..<5.5: (progress, fade, leaving) = (1, 1, false)
+        case ..<7: (progress, fade, leaving) = (1 - (t - 5.5) / 1.5, ease(1 - (t - 5.5) / 1.5), true)
+        default: (progress, fade, leaving) = (0, 0, true)
+        }
+        let e = ease(progress)
+        let m = ease(min(1, max(0, (e - 0.15) / 0.85)))
+        let frame = NSRect(x: from.minX + (to.minX - from.minX) * m, y: from.minY + (to.minY - from.minY) * m,
+                           width: from.width + (to.width - from.width) * m,
+                           height: from.height + (to.height - from.height) * m).integral
+        let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        if progress > 0 {
+            var u = InkUniforms()
+            u.bubble = centre(frame)
+            u.origin = centre(from)
+            u.aspect = aspect
+            u.time = Float(t - 1)
+            u.progress = Float(leaving ? 1 : progress)
+            u.fade = Float(fade)
+            u.maxFromBubble = farthest(u.bubble)
+            u.maxFromOrigin = farthest(u.origin)
+            u.mode = 2
+            if let ink = InkLayer.snapshot(u, width: w, height: h) {
+                ctx.draw(ink, in: CGRect(x: 0, y: 0, width: w, height: h))
+            }
+        }
+        let view = BubbleView(frame: NSRect(origin: .zero, size: frame.size))
+        view.level = pace.level(at: t)
+        let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+        view.cacheDisplay(in: view.bounds, to: rep)
+        ctx.setAlpha(CGFloat(0.75 + 0.25 * m))
+        ctx.draw(rep.cgImage!, in: frame)
+        try! NSBitmapImageRep(cgImage: ctx.makeImage()!).representation(using: .png, properties: [:])!
+            .write(to: URL(fileURLWithPath: String(format: "%@/f%03d.png", args[2], i)))
+    }
 default:
-    print("usage: render icon|frames <folder>")
+    print("usage: render icon|frames|focus <folder>")
 }

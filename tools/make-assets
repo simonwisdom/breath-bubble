@@ -5,11 +5,13 @@ set -e
 cd "$(dirname "$0")/.."
 WORK=build/assets
 rm -rf "$WORK"
-mkdir -p "$WORK/icon" "$WORK/frames" "$WORK/AppIcon.iconset" docs
+mkdir -p "$WORK/icon" "$WORK/frames" "$WORK/focus" "$WORK/AppIcon.iconset" docs
 
-swiftc -O -o "$WORK/render" tools/render/main.swift Sources/BreathBubble/BubbleView.swift Sources/BreathBubble/Pace.swift
+swiftc -O -o "$WORK/render" tools/render/main.swift Sources/BreathBubble/BubbleView.swift Sources/BreathBubble/Pace.swift \
+  Sources/BreathBubble/InkLayer.swift
 "$WORK/render" icon "$WORK/icon"
 "$WORK/render" frames "$WORK/frames"
+"$WORK/render" focus "$WORK/focus"
 
 # App icon
 for s in 16 32 128 256 512; do
@@ -34,7 +36,12 @@ CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
   --window-size=720,450 --screenshot="$PWD/$WORK/scene.png" "file://$PWD/$WORK/scene.html" 2>/dev/null
 
 # Breathing animation: the bubble over a desk scene, one full slow breath, looping
-ffmpeg -loglevel error -y -i "$WORK/scene.png" -framerate 15 -i "$WORK/frames/f%03d.png" \
+ffmpeg -loglevel error -y -loop 1 -framerate 15 -i "$WORK/scene.png" -framerate 15 -i "$WORK/frames/f%03d.png" \
   -filter_complex "[1]scale=150:150,format=rgba,colorchannelmixer=aa=0.75[b];[0][b]overlay=540:270:shortest=1,split[x][y];[x]palettegen=max_colors=128[p];[y][p]paletteuse=dither=bayer" \
   -loop 0 docs/breathing.gif
+
+# Focus animation: Ink spills from the bubble over the same scene, then fades back, looping
+ffmpeg -loglevel error -y -loop 1 -framerate 15 -i "$WORK/scene.png" -framerate 15 -i "$WORK/focus/f%03d.png" \
+  -filter_complex "[0][1]overlay=0:0:shortest=1,split[x][y];[x]palettegen=max_colors=128[p];[y][p]paletteuse=dither=bayer" \
+  -loop 0 docs/focus.gif
 echo "assets made"
