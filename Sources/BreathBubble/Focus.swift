@@ -34,6 +34,8 @@ final class Focus {
     private var progress = 0.0
     /// Where progress stood when leaving began; Tide and Ink keep that shape and fade it out.
     private var leaveFrom = 1.0
+    /// How far in the screen looked when leaving began, so leaving starts without a jump.
+    private var shownAtLeave = 1.0
     private var from = NSRect.zero, to = NSRect.zero
     private var screenSize = NSSize.zero
     private var fromAlpha: CGFloat = 1
@@ -41,9 +43,9 @@ final class Focus {
     private var onDone: (() -> Void)?
 
     private var style = FocusStyle.tide
-    /// Going in and coming out each take a second and a half.
+    /// Going in takes a second and a half; coming out is a little quicker.
     private let enterSeconds = 1.5
-    private let leaveSeconds = 1.5
+    private let leaveSeconds = 1.05
 
     var isActive: Bool { !windows.isEmpty }
 
@@ -107,6 +109,7 @@ final class Focus {
     func leave() {
         guard isActive, phase != .leaving else { return }
         leaveFrom = max(progress, 0.001)
+        shownAtLeave = Curve.arrive(progress)
         phase = .leaving
     }
 
@@ -138,9 +141,9 @@ final class Focus {
     }
 
     private func apply() {
-        let e = ease(progress)
-        // Tide and Ink keep their shape while leaving and fade out evenly.
-        let fadeOut = phase == .leaving ? ease(progress / leaveFrom) : 1
+        // Tide and Ink keep their shape while leaving and fade it out.
+        let fadeOut = phase == .leaving ? 1 - Curve.leave(1 - progress / leaveFrom) : 1
+        let e = phase == .leaving ? shownAtLeave * fadeOut : Curve.arrive(progress)
         // The screen with the ink layer is drawn by it; every other screen dims evenly.
         for v in views where ink?.superview !== v { v.dim = CGFloat(e) }
         // The bubble moves a little behind the fill, so the dark arrives first.
@@ -165,7 +168,7 @@ final class Focus {
         u.origin = point(from)
         u.aspect = aspect
         u.time = Float(Date().timeIntervalSince(started))
-        u.progress = Float(phase == .leaving ? leaveFrom : progress)
+        u.progress = Float(phase == .leaving ? shownAtLeave : e)
         u.fade = Float(fadeOut)
         u.maxFromBubble = farthest(u.bubble)
         u.maxFromOrigin = farthest(u.origin)

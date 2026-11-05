@@ -8,7 +8,7 @@ rm -rf "$WORK"
 mkdir -p "$WORK/icon" "$WORK/frames" "$WORK/focus" "$WORK/AppIcon.iconset" docs
 
 swiftc -O -o "$WORK/render" tools/render/main.swift Sources/BreathBubble/BubbleView.swift Sources/BreathBubble/Pace.swift \
-  Sources/BreathBubble/InkLayer.swift
+  Sources/BreathBubble/InkLayer.swift Sources/BreathBubble/Curve.swift
 "$WORK/render" icon "$WORK/icon"
 "$WORK/render" frames "$WORK/frames"
 "$WORK/render" focus "$WORK/focus"

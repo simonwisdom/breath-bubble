@@ -22,7 +22,7 @@ struct InkUniforms {
     var origin = SIMD2<Float>(0.5, 0.5)  // where the bubble was when focus started; the ink spills from here
     var aspect: Float = 1.6              // width / height
     var time: Float = 0                  // seconds since focus started, for the slow drift of the edge
-    var progress: Float = 0              // 0 is the desktop as it was, 1 is all black
+    var progress: Float = 0              // 0 is the desktop as it was, 1 is all black; already on its curve
     var fade: Float = 1                  // multiplies the darkness; leaving fades it out evenly
     var maxFromBubble: Float = 1         // distance from the bubble to the farthest corner, in screen heights
     var maxFromOrigin: Float = 1         // the same from the origin
@@ -156,7 +156,6 @@ final class InkLayer: MTKView {
         for (int i = 0; i < 3; i++) { s += a * noise(p); p = m * p; a *= 0.5; }
         return s / 0.875;
     }
-    static float easeInOut(float x) { return 0.5 - 0.5 * cos(M_PI_F * x); }
 
     fragment float4 inkFragment(VOut in [[stage_in]], constant Uniforms& u [[buffer(0)]]) {
         float2 asp = float2(u.aspect, 1.0);
@@ -165,15 +164,15 @@ final class InkLayer: MTKView {
             float v = length((in.uv - u.bubble) * asp);
             float n = fbm3(in.uv * asp * 1.1 + float2(t * 0.012, -t * 0.009));
             float f = 0.16;
-            // The clear area shrinks so the visible part of the desktop falls away evenly over the whole time.
-            float r = mix(-f, u.maxFromBubble + f, sqrt(1.0 - easeInOut(p)));
+            // The clear area shrinks in step with progress, so the desktop falls away at the pace of its curve.
+            float r = mix(-f, u.maxFromBubble + f, sqrt(1.0 - p));
             dark = smoothstep(-f * 0.5, f * 0.5, v - r + (n - 0.5) * 0.05);
         } else {
             float2 q = (in.uv - u.origin) * asp;
             float w1 = fbm3(q * 0.9 + float2(0.0, t * 0.02)), w2 = fbm3(q * 0.9 + float2(5.2, 1.3) - t * 0.02);
             float n = fbm3(q * 1.2 + 0.8 * float2(w1, w2));
             float f = 0.08 + 0.1 * p;
-            float r = mix(-0.12, u.maxFromOrigin + 0.24, 1.0 - pow(1.0 - p, 1.6));
+            float r = mix(-0.12, u.maxFromOrigin + 0.24, p);
             dark = 1.0 - smoothstep(-f, f * 0.4, length(q) - r + (n - 0.5) * 0.12);
         }
         dark = clamp(dark * u.fade, 0.0, 1.0);

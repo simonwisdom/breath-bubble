@@ -66,7 +66,7 @@ case "frames":
     }
 case "focus":
     // Focus in the Ink style over the 720x450 desk scene, at 15 frames a second: a second on the desk,
-    // 1.5 s going in, three seconds of focus, 1.5 s coming out. Follows Focus.apply in the app.
+    // 1.5 s going in, three seconds of focus, 1.05 s coming out, then the desk again. Follows Focus.apply in the app.
     let (w, h) = (720, 450)
     let pace = Pace.named("slow", breathIn: 5.5, breathOut: 5.5)
     let from = NSRect(x: 540, y: 30, width: 150, height: 150)  // where breathing.gif puts the bubble
@@ -89,23 +89,23 @@ case "focus":
         case ..<1: (progress, fade, leaving) = (0, 1, false)
         case ..<2.5: (progress, fade, leaving) = ((t - 1) / 1.5, 1, false)
         case ..<5.5: (progress, fade, leaving) = (1, 1, false)
-        case ..<7: (progress, fade, leaving) = (1 - (t - 5.5) / 1.5, ease(1 - (t - 5.5) / 1.5), true)
+        case ..<6.55: (progress, fade, leaving) = (1, 1 - Curve.leave((t - 5.5) / 1.05), true)
         default: (progress, fade, leaving) = (0, 0, true)
         }
-        let e = ease(progress)
+        let e = leaving ? fade : Curve.arrive(progress)
         let m = ease(min(1, max(0, (e - 0.15) / 0.85)))
         let frame = NSRect(x: from.minX + (to.minX - from.minX) * m, y: from.minY + (to.minY - from.minY) * m,
                            width: from.width + (to.width - from.width) * m,
                            height: from.height + (to.height - from.height) * m).integral
         let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
                             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        if progress > 0 {
+        if e > 0 {
             var u = InkUniforms()
             u.bubble = centre(frame)
             u.origin = centre(from)
             u.aspect = aspect
             u.time = Float(t - 1)
-            u.progress = Float(leaving ? 1 : progress)
+            u.progress = Float(leaving ? 1 : e)
             u.fade = Float(fade)
             u.maxFromBubble = farthest(u.bubble)
             u.maxFromOrigin = farthest(u.origin)
