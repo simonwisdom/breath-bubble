@@ -24,27 +24,91 @@ struct BubbleColor {
     static func named(_ id: String) -> BubbleColor { all.first { $0.id == id } ?? all[0] }
 }
 
-/// Draws the breathing bubble: a faint ring for full size and a soft filled circle that grows and shrinks.
+/// The breathing bubble: a faint ring for full size and a soft filled circle that grows and shrinks.
+/// The circle is drawn once at full size and scaled by Core Animation, so breathing costs the app
+/// almost nothing: `breathe` hands the whole rhythm to Core Animation, and `level` sets one moment.
 final class BubbleView: NSView {
-    var level: Double = 0 { didSet { needsDisplay = true } }
-    var color = BubbleColor.all[0] { didSet { needsDisplay = true } }
+    var level: Double = 0 { didSet { showLevel() } }
+    var color = BubbleColor.all[0] { didSet { if color.id != oldValue.id { redraw() } } }
+
+    /// Smallest size of the filled circle, as a share of the ring.
+    static let smallest = 0.35
+
+    private let ring = CAShapeLayer()
+    private let fill = CALayer()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.addSublayer(ring)
+        layer?.addSublayer(fill)
+        redraw()
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
 
     override var isOpaque: Bool { false }
 
-    override func draw(_ dirtyRect: NSRect) {
+    override func setFrameSize(_ newSize: NSSize) {
+        let changed = newSize != frame.size
+        super.setFrameSize(newSize)
+        if changed { redraw() }
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        redraw()
+    }
+
+    /// Breathes on its own at `pace`, in step with a rhythm that began at `start`, until `level` is set.
+    func breathe(_ pace: Pace, since start: Date) {
+        let samples = 240
+        let animation = CAKeyframeAnimation(keyPath: "transform.scale")
+        animation.values = (0...samples).map { scale(pace.level(at: Double($0) / Double(samples) * pace.cycle)) }
+        animation.duration = pace.cycle
+        animation.repeatCount = .infinity
+        animation.isRemovedOnCompletion = false
+        let into = Date().timeIntervalSince(start).truncatingRemainder(dividingBy: pace.cycle)
+        animation.beginTime = fill.convertTime(CACurrentMediaTime(), from: nil) - into
+        fill.add(animation, forKey: "breathe")
+    }
+
+    private func scale(_ level: Double) -> Double { Self.smallest + (1 - Self.smallest) * level }
+
+    private func showLevel() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        fill.removeAnimation(forKey: "breathe")
+        fill.setAffineTransform(CGAffineTransform(scaleX: scale(level), y: scale(level)))
+        CATransaction.commit()
+    }
+
+    /// Draws the ring and the full-size circle again, for a new size, colour or screen.
+    private func redraw() {
         let side = min(bounds.width, bounds.height)
-        let center = NSPoint(x: bounds.midX, y: bounds.midY)
         let maxR = side / 2 - 3
-        let minR = maxR * 0.35
-        let r = minR + (maxR - minR) * CGFloat(level)
-
-        let ring = NSBezierPath(ovalIn: NSRect(x: center.x - maxR, y: center.y - maxR, width: maxR * 2, height: maxR * 2))
+        guard maxR > 0 else { return }
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        let light = color.light, deep = color.deep
+        let disc = NSImage(size: NSSize(width: maxR * 2, height: maxR * 2), flipped: false) { rect in
+            let gradient = NSGradient(colors: [light.withAlphaComponent(0.95), deep.withAlphaComponent(0.80)])
+            gradient?.draw(in: NSBezierPath(ovalIn: rect), relativeCenterPosition: NSPoint(x: -0.25, y: 0.3))
+            return true
+        }
+        let screenScale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        ring.frame = bounds
+        ring.path = CGPath(ellipseIn: CGRect(x: center.x - maxR, y: center.y - maxR, width: maxR * 2, height: maxR * 2),
+                           transform: nil)
         ring.lineWidth = 1.5
-        color.deep.withAlphaComponent(0.55).setStroke()
-        ring.stroke()
-
-        let fill = NSBezierPath(ovalIn: NSRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2))
-        let gradient = NSGradient(colors: [color.light.withAlphaComponent(0.95), color.deep.withAlphaComponent(0.80)])
-        gradient?.draw(in: fill, relativeCenterPosition: NSPoint(x: -0.25, y: 0.3))
+        ring.fillColor = nil
+        ring.strokeColor = deep.withAlphaComponent(0.55).cgColor
+        ring.contentsScale = screenScale
+        fill.bounds = CGRect(x: 0, y: 0, width: maxR * 2, height: maxR * 2)
+        fill.position = center
+        fill.contentsScale = screenScale
+        fill.contents = disc.layerContents(forContentsScale: screenScale)
+        CATransaction.commit()
     }
 }

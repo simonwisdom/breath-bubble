@@ -16,18 +16,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let bubble = BubbleView()
     private let sound = Sound()
     private var timer: Timer?
+    private var tickRate = 0.0
     private let focus = Focus()
+
+    /// Read from settings in applySettings, so the timer doesn't read them on every tick.
+    private var pace = Pace.all[0]
+    private var clickThrough = true
+    /// The rhythm the floating bubble was last told to breathe, so it's only restarted when that changes.
+    private var breathing = ""
 
     private var doubleClickFocus: Bool { defaults.object(forKey: "doubleClickFocus") as? Bool ?? true }
     private var colorID: String { defaults.string(forKey: "color") ?? "sea" }
-    private var pace: Pace {
+    private var savedPace: Pace {
         Pace.named(defaults.string(forKey: "pace") ?? "slow",
                    breathIn: defaults.object(forKey: "breathIn") as? Double ?? 5.5,
                    breathOut: defaults.object(forKey: "breathOut") as? Double ?? 5.5)
     }
     private var size: CGFloat { CGFloat(defaults.object(forKey: "size") as? Double ?? 110) }
     private var opacity: Double { defaults.object(forKey: "opacity") as? Double ?? 0.6 }
-    private var clickThrough: Bool { defaults.object(forKey: "clickThrough") as? Bool ?? true }
+    private var savedClickThrough: Bool { defaults.object(forKey: "clickThrough") as? Bool ?? true }
     private var soundOn: Bool { defaults.bool(forKey: "sound") }
     private var shown: Bool { defaults.object(forKey: "shown") as? Bool ?? true }
 
@@ -45,8 +52,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // The panel writes settings straight to UserDefaults; follow every change.
         NotificationCenter.default.addObserver(self, selector: #selector(settingsChanged),
                                                name: UserDefaults.didChangeNotification, object: nil)
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tick() }
-        RunLoop.main.add(timer!, forMode: .common)
         watchAway()
         watchDoubleClick()
         // BREATHBUBBLE_FOCUS_TEST=1 starts focus a second after launch, so a test can watch it without clicking.
@@ -126,7 +131,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                        suspensionBehavior: .deliverImmediately)
     }
 
-    @objc private func wentAway() { away = true; focus.endNow(); applySettings() }
+    @objc private func wentAway() {
+        away = true
+        // Core Animation's clock stops while the Mac sleeps; start the breathing afresh on return so it keeps in step.
+        breathing = ""
+        focus.endNow()
+        applySettings()
+    }
 
     @objc private func cameBack() {
         // Waking the screen shows the lock screen first; stay paused until it's unlocked.
@@ -148,7 +159,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
-        panel.sharingType = .none  // left out of screen shares and recordings
+        // Left out of screen shares and recordings; BREATHBUBBLE_CAPTURE=1 lets tests take screenshots.
+        if ProcessInfo.processInfo.environment["BREATHBUBBLE_CAPTURE"] == nil { panel.sharingType = .none }
         panel.delegate = self
         panel.contentView = bubble
         if let saved = defaults.string(forKey: "origin") {
@@ -164,9 +176,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if defaults.string(forKey: "origin") != saved { defaults.set(saved, forKey: "origin") }
     }
 
+    /// The floating bubble breathes by itself (Core Animation), so the timer only needs to run fast
+    /// while focus draws its frames; otherwise it keeps the sound and the ⌘ check up to date.
+    private func setTickRate(_ perSecond: Double) {
+        guard perSecond != tickRate else { return }
+        tickRate = perSecond
+        timer?.invalidate()
+        timer = Timer(timeInterval: 1 / perSecond, repeats: true) { [weak self] _ in self?.tick() }
+        timer!.tolerance = 0.2 / perSecond
+        RunLoop.main.add(timer!, forMode: .common)
+    }
+
     private func tick() {
         let level = pace.level(at: Date().timeIntervalSince(breathStart))
-        if panel.isVisible { bubble.level = level }
         focus.tick(level: level)
         sound.level = level
         // Holding ⌘ lets the bubble catch the mouse so it can be dragged, even while clicks pass through.
@@ -184,6 +206,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         panel.alphaValue = opacity
         bubble.color = BubbleColor.named(colorID)
+        pace = savedPace
+        clickThrough = savedClickThrough
+        let rhythm = pace.steps.map { "\($0)" }.joined(separator: " ")
+        if rhythm != breathing {
+            breathing = rhythm
+            bubble.breathe(pace, since: breathStart)
+        }
         let visible = shown && !away
         let floating = visible && !focus.isActive  // in focus, the focus layer shows the bubble instead
         if floating && !panel.isVisible { panel.orderFrontRegardless() }
@@ -192,6 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         sound.followBreath = defaults.object(forKey: "followBreath") as? Bool ?? true
         sound.choose(defaults.string(forKey: "soundChoice") ?? "waves")
         if soundOn && visible { if !sound.isRunning { sound.start() } } else if sound.isRunning { sound.stop() }
+        setTickRate(focus.isActive ? 60 : sound.isRunning ? 30 : 10)
     }
 }
 
@@ -213,14 +243,26 @@ if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--snapshot" {
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
         save(host, name)
     }
-    let strip = NSView(frame: NSRect(x: 0, y: 0, width: CGFloat(BubbleColor.all.count) * 110, height: 110))
-    for (n, color) in BubbleColor.all.enumerated() {
-        let v = BubbleView(frame: NSRect(x: CGFloat(n) * 110, y: 0, width: 110, height: 110))
-        v.level = 0.6
-        v.color = color
-        strip.addSubview(v)
+    // The bubble is drawn in layers, which caching a view's display leaves out, so render the layers.
+    let stripWidth = BubbleColor.all.count * 110
+    if let ctx = CGContext(data: nil, width: stripWidth * 2, height: 220, bitsPerComponent: 8, bytesPerRow: 0,
+                           space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                           bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+        ctx.scaleBy(x: 2, y: 2)
+        for (n, color) in BubbleColor.all.enumerated() {
+            let v = BubbleView(frame: NSRect(x: 0, y: 0, width: 110, height: 110))
+            v.color = color
+            v.level = 0.6
+            ctx.saveGState()
+            ctx.translateBy(x: CGFloat(n * 110), y: 0)
+            v.layer?.render(in: ctx)
+            ctx.restoreGState()
+        }
+        if let image = ctx.makeImage() {
+            try! NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!
+                .write(to: dir.appendingPathComponent("colours.png"))
+        }
     }
-    save(strip, "colours.png")
     // Each focus style at five moments going in, over a light background, bubble starting top right.
     let (fw, fh) = (320, 200)
     for style in [FocusStyle.tide, .ink] {
